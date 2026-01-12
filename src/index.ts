@@ -20,6 +20,7 @@ export default createNatsEcho;
 export const Echo = createNatsEcho;
 
 // For CommonJS compatibility
+declare const module: any;
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         createNatsEcho,

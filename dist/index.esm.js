@@ -28,7 +28,7 @@ class SimpleNatsEcho {
     async connect() {
         try {
             let servers;
-            // Build servers array from options
+            // Build servers array
             if (this.options.nats?.servers) {
                 if (Array.isArray(this.options.nats.servers)) {
                     servers = this.options.nats.servers;
@@ -38,13 +38,12 @@ class SimpleNatsEcho {
                 }
             }
             else {
-                // Build from Pusher-style options for backward compatibility
                 const protocol = this.options.forceTLS ? 'wss' : 'ws';
                 const host = this.options.wsHost || 'localhost';
                 const port = this.options.wsPort || 4222;
                 servers = [`${protocol}://${host}:${port}`];
             }
-            // Prepare NATS connection options
+            console.log(`🔗 Connecting to: ${servers[0]}`);
             const connectOptions = {
                 servers,
                 reconnect: this.options.nats?.reconnect ?? true,
@@ -52,57 +51,205 @@ class SimpleNatsEcho {
                 timeout: this.options.nats?.timeout ?? 10000,
                 pingInterval: this.options.nats?.pingInterval ?? 60000,
                 debug: this.options.nats?.debug ?? false,
-                verbose: this.options.nats?.verbose ?? false,
+                verbose: this.options.nats?.verbose ?? true, // Enable verbose for debugging
                 waitOnFirstConnect: this.options.nats?.waitOnFirstConnect ?? true,
                 name: this.options.nats?.name || `laravel-echo-${this.socketIdValue.substring(0, 8)}`,
             };
-            // Handle authentication methods (in priority order)
-            if (this.options.nats?.token) {
-                // Token authentication
-                connectOptions.token = this.options.nats.token;
-                console.log('Using token authentication for NATS');
-            }
-            else if (this.options.nats?.user && this.options.nats?.pass) {
-                // User/Password authentication
+            // CRITICAL: Server requires auth (auth_required: true)
+            // So we MUST send authentication
+            if (this.options.nats?.user && this.options.nats?.pass) {
                 connectOptions.user = this.options.nats.user;
                 connectOptions.pass = this.options.nats.pass;
-                console.log('Using user/password authentication for NATS');
-            }
-            else if (this.options.nats?.creds) {
-                // JWT credentials
-                connectOptions.creds = this.options.nats.creds;
-                console.log('Using JWT credentials for NATS');
+                console.log('🔐 Using authentication:', this.options.nats.user);
             }
             else {
-                console.log('Using no authentication for NATS (if server allows)');
+                console.log('⚠️  WARNING: Server requires auth but no credentials provided');
+                console.log('   Add user/pass to nats config or allow anonymous in server');
             }
-            // Handle TLS if specified
-            if (this.options.nats?.tls) {
-                connectOptions.tls = this.options.nats.tls;
-            }
-            console.log(`Connecting to NATS servers: ${servers.join(', ')}`);
+            console.log('🔧 Connection options:', {
+                servers: connectOptions.servers,
+                hasAuth: !!(connectOptions.user && connectOptions.pass),
+                timeout: connectOptions.timeout
+            });
             this.connection = await connect(connectOptions);
             this.isConnected = true;
             this.reconnectAttempts = 0;
-            console.log(`✅ Connected to NATS at ${servers[0]}`);
-            // Setup event handlers
+            console.log(`✅ Connected to NATS!`);
             this.setupConnectionEvents();
         }
-        catch (error) { // Added type annotation
-            this.connectionPromise = null;
-            this.reconnectAttempts++;
-            if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-                console.error(`❌ Failed to connect to NATS after ${this.reconnectAttempts} attempts:`, error);
-                throw new Error(`Failed to connect to NATS after ${this.reconnectAttempts} attempts: ${error.message}`);
+        catch (error) {
+            console.error('❌ Connection failed:', error.message);
+            if (error.message.includes('Authentication')) {
+                console.log('🔐 Authentication error - check credentials in nats config');
             }
-            else {
-                console.warn(`⚠️ Connection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} failed:`, error.message);
-                // Wait before retrying
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                return this.connect(); // Retry
-            }
+            throw error;
         }
     }
+    // private async connect(): Promise<void> {
+    //     try {
+    //         let servers: string[];
+    //
+    //         // Build servers array from options
+    //         if (this.options.nats?.servers) {
+    //             if (Array.isArray(this.options.nats.servers)) {
+    //                 servers = this.options.nats.servers;
+    //             } else {
+    //                 servers = [this.options.nats.servers];
+    //             }
+    //         } else {
+    //             // Build from Pusher-style options
+    //             const protocol = this.options.forceTLS ? 'wss' : 'ws';
+    //             const host = this.options.wsHost || 'localhost';
+    //             const port = this.options.wsPort || 4222;
+    //             servers = [`${protocol}://${host}:${port}`];
+    //         }
+    //
+    //         console.log(`🔗 Connecting to NATS WebSocket: ${servers[0]}`);
+    //
+    //         // Prepare NATS connection options
+    //         const connectOptions: any = {
+    //             servers,
+    //             reconnect: this.options.nats?.reconnect ?? true,
+    //             maxReconnectAttempts: this.maxReconnectAttempts,
+    //             timeout: this.options.nats?.timeout ?? 10000,
+    //             pingInterval: this.options.nats?.pingInterval ?? 60000,
+    //             debug: this.options.nats?.debug ?? false,
+    //             verbose: this.options.nats?.verbose ?? false,
+    //             waitOnFirstConnect: this.options.nats?.waitOnFirstConnect ?? true,
+    //             name: this.options.nats?.name || `laravel-echo-${this.socketIdValue.substring(0, 8)}`,
+    //         };
+    //
+    //         console.log('🔧 Connection options prepared');
+    //
+    //         // CRITICAL FIX: Only add authentication if BOTH user AND pass are provided
+    //         // AND the server actually requires it
+    //         if (this.options.nats?.user && this.options.nats?.pass) {
+    //             // Try with auth first
+    //             console.log('🔐 Attempting connection WITH authentication...');
+    //             connectOptions.user = this.options.nats.user;
+    //             connectOptions.pass = this.options.nats.pass;
+    //         } else {
+    //             console.log('🔓 Attempting connection WITHOUT authentication');
+    //         }
+    //
+    //         this.connection = await connect(connectOptions);
+    //
+    //         this.isConnected = true;
+    //         this.reconnectAttempts = 0;
+    //         console.log(`✅ Connected to NATS at ${servers[0]}`);
+    //
+    //         // Setup event handlers
+    //         this.setupConnectionEvents();
+    //
+    //     } catch (error: any) {
+    //         console.error('❌ Connection failed:', error.message);
+    //
+    //         // If authentication failed, try without it
+    //         if (error.message.includes('Authentication') && this.options.nats?.user && this.options.nats?.pass) {
+    //             console.log('🔄 Authentication failed, retrying without credentials...');
+    //
+    //             // Remove auth and retry
+    //             const retryOptions = { ...this.options };
+    //             if (retryOptions.nats) {
+    //                 delete retryOptions.nats.user;
+    //                 delete retryOptions.nats.pass;
+    //             }
+    //
+    //             // Create a new instance without auth
+    //             const retryInstance = new SimpleNatsEcho(retryOptions);
+    //             this.connection = retryInstance.connection;
+    //             this.isConnected = retryInstance.isConnected;
+    //
+    //             if (this.isConnected) {
+    //                 console.log('✅ Connected without authentication');
+    //                 return;
+    //             }
+    //         }
+    //
+    //         throw error;
+    //     }
+    // }
+    // private async connect(): Promise<void> {
+    //     try {
+    //         let servers: string[];
+    //
+    //         // Build servers array from options
+    //         if (this.options.nats?.servers) {
+    //             if (Array.isArray(this.options.nats.servers)) {
+    //                 servers = this.options.nats.servers;
+    //             } else {
+    //                 servers = [this.options.nats.servers];
+    //             }
+    //         } else {
+    //             // Build from Pusher-style options for backward compatibility
+    //             const protocol = this.options.forceTLS ? 'wss' : 'ws';
+    //             const host = this.options.wsHost || 'localhost';
+    //             const port = this.options.wsPort || 4222;
+    //             servers = [`${protocol}://${host}:${port}`];
+    //         }
+    //
+    //         // Prepare NATS connection options
+    //         const connectOptions: any = {
+    //             servers,
+    //             reconnect: this.options.nats?.reconnect ?? true,
+    //             maxReconnectAttempts: this.maxReconnectAttempts,
+    //             timeout: this.options.nats?.timeout ?? 10000,
+    //             pingInterval: this.options.nats?.pingInterval ?? 60000,
+    //             debug: this.options.nats?.debug ?? false,
+    //             verbose: this.options.nats?.verbose ?? false,
+    //             waitOnFirstConnect: this.options.nats?.waitOnFirstConnect ?? true,
+    //             name: this.options.nats?.name || `laravel-echo-${this.socketIdValue.substring(0, 8)}`,
+    //         };
+    //
+    //         // Handle authentication methods (in priority order)
+    //         if (this.options.nats?.token) {
+    //             // Token authentication
+    //             connectOptions.token = this.options.nats.token;
+    //             console.log('Using token authentication for NATS');
+    //         } else if (this.options.nats?.user && this.options.nats?.pass) {
+    //             // User/Password authentication
+    //             connectOptions.user = this.options.nats.user;
+    //             connectOptions.pass = this.options.nats.pass;
+    //             console.log('Using user/password authentication for NATS');
+    //         } else if (this.options.nats?.creds) {
+    //             // JWT credentials
+    //             connectOptions.creds = this.options.nats.creds;
+    //             console.log('Using JWT credentials for NATS');
+    //         } else {
+    //             console.log('Using no authentication for NATS (if server allows)');
+    //         }
+    //
+    //         // Handle TLS if specified
+    //         if (this.options.nats?.tls) {
+    //             connectOptions.tls = this.options.nats.tls;
+    //         }
+    //
+    //         console.log(`Connecting to NATS servers: ${servers.join(', ')}`);
+    //
+    //         this.connection = await connect(connectOptions);
+    //
+    //         this.isConnected = true;
+    //         this.reconnectAttempts = 0;
+    //         console.log(`✅ Connected to NATS at ${servers[0]}`);
+    //
+    //         // Setup event handlers
+    //         this.setupConnectionEvents();
+    //
+    //     } catch (error: any) { // Added type annotation
+    //         this.connectionPromise = null;
+    //         this.reconnectAttempts++;
+    //
+    //         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+    //             console.error(`❌ Failed to connect to NATS after ${this.reconnectAttempts} attempts:`, error);
+    //             throw new Error(`Failed to connect to NATS after ${this.reconnectAttempts} attempts: ${error.message}`);
+    //         } else {
+    //             console.warn(`⚠️ Connection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} failed:`, error.message);
+    //             // Wait before retrying
+    //             await new Promise(resolve => setTimeout(resolve, 1000));
+    //             return this.connect(); // Retry
+    //         }
+    //     }
+    // }
     setupConnectionEvents() {
         if (!this.connection)
             return;
@@ -389,7 +536,6 @@ function createNatsEcho(options) {
 
 // Also export as window.Echo compatible factory
 const Echo = createNatsEcho;
-// For CommonJS compatibility
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         createNatsEcho,
