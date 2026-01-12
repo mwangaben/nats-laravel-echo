@@ -47,7 +47,7 @@ class Echo {
     }
 
     socketId() {
-        return this.connector.socketId(); // This now calls the connector's socketId() method
+        return this.connector.socketId();
     }
 
     disconnect() {
@@ -55,10 +55,19 @@ class Echo {
     }
 
     getConnectionStatus() {
-        return this.connector.broadcaster ?
-            this.connector.broadcaster.getConnectionStatus() :
-            { isConnected: false, socketId: null, subscriptionCount: 0 };
+        return this.connector.getConnectionStatus();
+    }
+
+    // Expose helper functions
+    static normalizeEventName(eventName) {
+        const NATSConnector = require('./connector');
+        return NATSConnector.normalizeEventName(eventName);
     }
 }
 
+// Export the Echo class as default
 module.exports = Echo;
+
+// Also export helper functions for advanced users
+module.exports.normalizeEventName = NATSConnector.normalizeEventName;
+module.exports.createCallbackKey = NATSConnector.createCallbackKey;

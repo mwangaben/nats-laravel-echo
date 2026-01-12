@@ -1,10 +1,19 @@
 // src/broadcaster.js
 const { connect, JSONCodec } = require('nats.ws');
 
+// Import helper functions from connector if needed, or define locally
+function normalizeEventName(eventName) {
+    // Convert "App\Events\OrderShipped" to "OrderShipped"
+    if (eventName.includes('\\')) {
+        return eventName.split('\\').pop();
+    }
+    return eventName;
+}
+
 class NATSBroadcaster {
     constructor(options) {
         this.options = options;
-        this.socketId = 'nats_' + Math.random().toString(36).substring(2, 15); // Property, not method
+        this.socketId = 'nats_' + Math.random().toString(36).substring(2, 15);
         this.connection = null;
         this.isConnected = false;
         this.jsonCodec = JSONCodec();
@@ -77,10 +86,22 @@ class NATSBroadcaster {
                     for await (const msg of sub) {
                         try {
                             const data = this.jsonCodec.decode(msg.data);
-                            if (data && data.event) {
-                                const cb = this.callbacks.get(`${channel}.${data.event}`);
+
+                            // Validate it's a Laravel event
+                            if (data && data.event && data.channel) {
+                                const eventName = data.event;
+                                const normalizedEventName = normalizeEventName(eventName);
+
+                                // Try exact match first, then normalized name
+                                let cb = this.callbacks.get(`${channel}.${eventName}`);
+                                if (!cb) {
+                                    cb = this.callbacks.get(`${channel}.${normalizedEventName}`);
+                                }
+
                                 if (cb) {
-                                    cb(data.data || {});
+                                    // Pass the data (Laravel sends data in data.data)
+                                    const eventData = data.data || {};
+                                    cb(eventData);
                                 }
                             }
                         } catch (err) {
@@ -125,15 +146,10 @@ class NATSBroadcaster {
         }
     }
 
-    // Change socketId from method to getter if you want to keep it as a method
-    // getSocketId() {
-    //     return this.socketId;
-    // }
-
     getConnectionStatus() {
         return {
             isConnected: this.isConnected,
-            socketId: this.socketId, // Now a property
+            socketId: this.socketId,
             subscriptionCount: this.subscriptions.size
         };
     }

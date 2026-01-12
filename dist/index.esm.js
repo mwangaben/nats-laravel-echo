@@ -4,6 +4,10 @@ function getDefaultExportFromCjs (x) {
 	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
 }
 
+var src = {exports: {}};
+
+var connector = {exports: {}};
+
 var broadcaster;
 var hasRequiredBroadcaster;
 
@@ -13,10 +17,19 @@ function requireBroadcaster () {
 	// src/broadcaster.js
 	const { connect, JSONCodec } = require$$0;
 
+	// Import helper functions from connector if needed, or define locally
+	function normalizeEventName(eventName) {
+	    // Convert "App\Events\OrderShipped" to "OrderShipped"
+	    if (eventName.includes('\\')) {
+	        return eventName.split('\\').pop();
+	    }
+	    return eventName;
+	}
+
 	class NATSBroadcaster {
 	    constructor(options) {
 	        this.options = options;
-	        this.socketId = 'nats_' + Math.random().toString(36).substring(2, 15); // Property, not method
+	        this.socketId = 'nats_' + Math.random().toString(36).substring(2, 15);
 	        this.connection = null;
 	        this.isConnected = false;
 	        this.jsonCodec = JSONCodec();
@@ -89,10 +102,22 @@ function requireBroadcaster () {
 	                    for await (const msg of sub) {
 	                        try {
 	                            const data = this.jsonCodec.decode(msg.data);
-	                            if (data && data.event) {
-	                                const cb = this.callbacks.get(`${channel}.${data.event}`);
+
+	                            // Validate it's a Laravel event
+	                            if (data && data.event && data.channel) {
+	                                const eventName = data.event;
+	                                const normalizedEventName = normalizeEventName(eventName);
+
+	                                // Try exact match first, then normalized name
+	                                let cb = this.callbacks.get(`${channel}.${eventName}`);
+	                                if (!cb) {
+	                                    cb = this.callbacks.get(`${channel}.${normalizedEventName}`);
+	                                }
+
 	                                if (cb) {
-	                                    cb(data.data || {});
+	                                    // Pass the data (Laravel sends data in data.data)
+	                                    const eventData = data.data || {};
+	                                    cb(eventData);
 	                                }
 	                            }
 	                        } catch (err) {
@@ -137,15 +162,10 @@ function requireBroadcaster () {
 	        }
 	    }
 
-	    // Change socketId from method to getter if you want to keep it as a method
-	    // getSocketId() {
-	    //     return this.socketId;
-	    // }
-
 	    getConnectionStatus() {
 	        return {
 	            isConnected: this.isConnected,
-	            socketId: this.socketId, // Now a property
+	            socketId: this.socketId,
 	            subscriptionCount: this.subscriptions.size
 	        };
 	    }
@@ -155,14 +175,27 @@ function requireBroadcaster () {
 	return broadcaster;
 }
 
-var connector;
 var hasRequiredConnector;
 
 function requireConnector () {
-	if (hasRequiredConnector) return connector;
+	if (hasRequiredConnector) return connector.exports;
 	hasRequiredConnector = 1;
 	// src/connector.js
 	const NATSBroadcaster = requireBroadcaster();
+
+	// Helper function to normalize Laravel event names
+	function normalizeEventName(eventName) {
+	    // Convert "App\Events\OrderShipped" to "OrderShipped"
+	    if (eventName.includes('\\')) {
+	        return eventName.split('\\').pop();
+	    }
+	    return eventName;
+	}
+
+	// Helper function to create callback key
+	function createCallbackKey(channel, event) {
+	    return `${channel}.${event}`;
+	}
 
 	class NATSConnector {
 	    constructor(options) {
@@ -212,13 +245,25 @@ function requireConnector () {
 	    }
 
 	    socketId() {
-	        return this.broadcaster ? this.broadcaster.socketId : null; // Changed from method to property
+	        return this.broadcaster ? this.broadcaster.socketId : null;
 	    }
 
 	    disconnect() {
 	        if (this.broadcaster) {
 	            this.broadcaster.disconnect();
 	        }
+	    }
+
+	    // Optional: Add a helper method for users
+	    normalizeEvent(eventName) {
+	        return normalizeEventName(eventName);
+	    }
+
+	    // Helper to get connection status
+	    getConnectionStatus() {
+	        return this.broadcaster ?
+	            this.broadcaster.getConnectionStatus() :
+	            { isConnected: false, socketId: null, subscriptionCount: 0 };
 	    }
 	}
 
@@ -248,10 +293,38 @@ function requireConnector () {
 	        }
 	        return this;
 	    }
+
+	    unsubscribe() {
+	        // Unsubscribe from all events on this channel
+	        for (const [event, subscription] of this.eventHandlers.entries()) {
+	            subscription.unsubscribe();
+	        }
+	        this.eventHandlers.clear();
+	        return this;
+	    }
 	}
 
 	class PrivateChannel extends Channel {
+	    constructor(connector, name) {
+	        super(connector, name);
+	        this.authenticated = false;
+	    }
+
 	    // Add authentication for private channels
+	    authenticate(authData) {
+	        // This would typically make a request to Laravel's broadcasting/auth endpoint
+	        console.log(`Authenticating private channel: ${this.name}`);
+	        this.authenticated = true;
+	        return this;
+	    }
+
+	    listen(event, handler) {
+	        if (!this.authenticated) {
+	            console.warn(`⚠️  Channel "${this.name}": Not authenticated. Call .authenticate() first.`);
+	            return this;
+	        }
+	        return super.listen(event, handler);
+	    }
 	}
 
 	class PresenceChannel extends Channel {
@@ -270,17 +343,25 @@ function requireConnector () {
 	    leaving(callback) {
 	        return this.listen('presence:leaving', callback);
 	    }
+
+	    whisper(event, data) {
+	        // For sending whispers to other users in the channel
+	        console.log(`Whispering "${event}" on ${this.name}:`, data);
+	        return this;
+	    }
 	}
 
-	connector = NATSConnector;
-	return connector;
+	// Export the connector and helper functions
+	connector.exports = NATSConnector;
+	connector.exports.normalizeEventName = normalizeEventName;
+	connector.exports.createCallbackKey = createCallbackKey;
+	return connector.exports;
 }
 
-var src;
 var hasRequiredSrc;
 
 function requireSrc () {
-	if (hasRequiredSrc) return src;
+	if (hasRequiredSrc) return src.exports;
 	hasRequiredSrc = 1;
 	// src/index.js
 	const NATSConnector = requireConnector();
@@ -331,7 +412,7 @@ function requireSrc () {
 	    }
 
 	    socketId() {
-	        return this.connector.socketId(); // This now calls the connector's socketId() method
+	        return this.connector.socketId();
 	    }
 
 	    disconnect() {
@@ -339,14 +420,23 @@ function requireSrc () {
 	    }
 
 	    getConnectionStatus() {
-	        return this.connector.broadcaster ?
-	            this.connector.broadcaster.getConnectionStatus() :
-	            { isConnected: false, socketId: null, subscriptionCount: 0 };
+	        return this.connector.getConnectionStatus();
+	    }
+
+	    // Expose helper functions
+	    static normalizeEventName(eventName) {
+	        const NATSConnector = requireConnector();
+	        return NATSConnector.normalizeEventName(eventName);
 	    }
 	}
 
-	src = Echo;
-	return src;
+	// Export the Echo class as default
+	src.exports = Echo;
+
+	// Also export helper functions for advanced users
+	src.exports.normalizeEventName = NATSConnector.normalizeEventName;
+	src.exports.createCallbackKey = NATSConnector.createCallbackKey;
+	return src.exports;
 }
 
 var srcExports = requireSrc();

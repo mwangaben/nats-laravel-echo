@@ -1,6 +1,20 @@
 // src/connector.js
 const NATSBroadcaster = require('./broadcaster');
 
+// Helper function to normalize Laravel event names
+function normalizeEventName(eventName) {
+    // Convert "App\Events\OrderShipped" to "OrderShipped"
+    if (eventName.includes('\\')) {
+        return eventName.split('\\').pop();
+    }
+    return eventName;
+}
+
+// Helper function to create callback key
+function createCallbackKey(channel, event) {
+    return `${channel}.${event}`;
+}
+
 class NATSConnector {
     constructor(options) {
         this.options = options;
@@ -49,13 +63,25 @@ class NATSConnector {
     }
 
     socketId() {
-        return this.broadcaster ? this.broadcaster.socketId : null; // Changed from method to property
+        return this.broadcaster ? this.broadcaster.socketId : null;
     }
 
     disconnect() {
         if (this.broadcaster) {
             this.broadcaster.disconnect();
         }
+    }
+
+    // Optional: Add a helper method for users
+    normalizeEvent(eventName) {
+        return normalizeEventName(eventName);
+    }
+
+    // Helper to get connection status
+    getConnectionStatus() {
+        return this.broadcaster ?
+            this.broadcaster.getConnectionStatus() :
+            { isConnected: false, socketId: null, subscriptionCount: 0 };
     }
 }
 
@@ -85,10 +111,38 @@ class Channel {
         }
         return this;
     }
+
+    unsubscribe() {
+        // Unsubscribe from all events on this channel
+        for (const [event, subscription] of this.eventHandlers.entries()) {
+            subscription.unsubscribe();
+        }
+        this.eventHandlers.clear();
+        return this;
+    }
 }
 
 class PrivateChannel extends Channel {
+    constructor(connector, name) {
+        super(connector, name);
+        this.authenticated = false;
+    }
+
     // Add authentication for private channels
+    authenticate(authData) {
+        // This would typically make a request to Laravel's broadcasting/auth endpoint
+        console.log(`Authenticating private channel: ${this.name}`);
+        this.authenticated = true;
+        return this;
+    }
+
+    listen(event, handler) {
+        if (!this.authenticated) {
+            console.warn(`⚠️  Channel "${this.name}": Not authenticated. Call .authenticate() first.`);
+            return this;
+        }
+        return super.listen(event, handler);
+    }
 }
 
 class PresenceChannel extends Channel {
@@ -107,6 +161,15 @@ class PresenceChannel extends Channel {
     leaving(callback) {
         return this.listen('presence:leaving', callback);
     }
+
+    whisper(event, data) {
+        // For sending whispers to other users in the channel
+        console.log(`Whispering "${event}" on ${this.name}:`, data);
+        return this;
+    }
 }
 
+// Export the connector and helper functions
 module.exports = NATSConnector;
+module.exports.normalizeEventName = normalizeEventName;
+module.exports.createCallbackKey = createCallbackKey;
