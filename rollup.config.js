@@ -1,46 +1,33 @@
 // rollup.config.js
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
-import typescript from '@rollup/plugin-typescript';
-import dts from 'rollup-plugin-dts';
 
 export default [
-    // Main JavaScript bundle
+    // CommonJS
     {
-        input: 'src/index.ts',
-        output: [
-            {
-                file: 'dist/index.cjs',
-                format: 'cjs',
-                sourcemap: true,
-                exports: 'named'
-            },
-            {
-                file: 'dist/index.esm.js',
-                format: 'es',
-                sourcemap: true
-            }
-        ],
+        input: 'src/index.js',
+        output: {
+            file: 'dist/index.cjs',
+            format: 'cjs',
+            exports: 'default'
+        },
         plugins: [
-            resolve({
-                browser: true
-            }),
-            commonjs(),
-            typescript({
-                tsconfig: './tsconfig.json',
-                exclude: ['**/*.test.ts', '**/*.spec.ts']
-            })
+            resolve(),
+            commonjs()
         ],
-        external: ['nats.ws', 'laravel-echo']
+        external: ['nats.ws']
     },
-    // TypeScript declarations
+    // ES Module
     {
-        input: 'src/index.ts',
-        output: [{
-            file: 'dist/index.d.ts',
+        input: 'src/index.js',
+        output: {
+            file: 'dist/index.esm.js',
             format: 'es'
-        }],
-        plugins: [dts()],
-        external: ['nats.ws', 'laravel-echo']
+        },
+        plugins: [
+            resolve(),
+            commonjs()
+        ],
+        external: ['nats.ws']
     }
 ];
