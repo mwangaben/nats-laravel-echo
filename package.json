@@ -4,6 +4,7 @@
   "description": "NATS broadcaster for Laravel Echo",
   "main": "dist/index.cjs",
   "module": "dist/index.esm.js",
+  "type": "module",
   "browser": "dist/index.umd.js",
   "files": [
     "dist",
@@ -20,9 +21,9 @@
     "nats.ws": "^1.30.0"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^25.0.7",
-    "@rollup/plugin-node-resolve": "^15.2.3",
-    "rimraf": "^5.0.5",
-    "rollup": "^3.29.4"
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "rimraf": "^6.1.2",
+    "rollup": "^4.55.1"
   }
 }

@@ -1,5 +1,6 @@
 // test/test.js
-const Echo = require('../dist/index.cjs');
+// const Echo = require('../dist/index.cjs');
+import Echo from '../dist/index.cjs';
 
 async function testEcho() {
     console.log('🧪 Testing Laravel Echo NATS Broadcaster\n');
