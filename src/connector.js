@@ -1,8 +1,7 @@
-// src/connector.js
-const NATSBroadcaster = require('./broadcaster');
+import NATSBroadcaster from './broadcaster.js';
 
 // Helper function to normalize Laravel event names
-function normalizeEventName(eventName) {
+export function normalizeEventName(eventName) {
     // Convert "App\Events\OrderShipped" to "OrderShipped"
     if (eventName.includes('\\')) {
         return eventName.split('\\').pop();
@@ -11,7 +10,7 @@ function normalizeEventName(eventName) {
 }
 
 // Helper function to create callback key
-function createCallbackKey(channel, event) {
+export function createCallbackKey(channel, event) {
     return `${channel}.${event}`;
 }
 
@@ -169,7 +168,6 @@ class PresenceChannel extends Channel {
     }
 }
 
-// Export the connector and helper functions
-module.exports = NATSConnector;
-module.exports.normalizeEventName = normalizeEventName;
-module.exports.createCallbackKey = createCallbackKey;
+// Export the connector as default and helper functions
+export default NATSConnector;
+// export { normalizeEventName, createCallbackKey };

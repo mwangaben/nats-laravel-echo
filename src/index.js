@@ -1,5 +1,4 @@
-// src/index.js
-const NATSConnector = require('./connector');
+import NATSConnector, { normalizeEventName, createCallbackKey } from './connector.js';
 
 class Echo {
     constructor(options) {
@@ -57,17 +56,11 @@ class Echo {
     getConnectionStatus() {
         return this.connector.getConnectionStatus();
     }
-
-    // Expose helper functions
-    static normalizeEventName(eventName) {
-        const NATSConnector = require('./connector');
-        return NATSConnector.normalizeEventName(eventName);
-    }
 }
 
-// Export the Echo class as default
-module.exports = Echo;
+// Attach helper functions to the Echo class
+Echo.normalizeEventName = normalizeEventName;
+Echo.createCallbackKey = createCallbackKey;
 
-// Also export helper functions for advanced users
-module.exports.normalizeEventName = NATSConnector.normalizeEventName;
-module.exports.createCallbackKey = NATSConnector.createCallbackKey;
+// Export only default
+export default Echo;

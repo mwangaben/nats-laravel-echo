@@ -1,5 +1,4 @@
-// src/broadcaster.js
-const { connect, JSONCodec } = require('nats.ws');
+import { connect, JSONCodec } from 'nats.ws';
 
 // Import helper functions from connector if needed, or define locally
 function normalizeEventName(eventName) {
@@ -155,4 +154,4 @@ class NATSBroadcaster {
     }
 }
 
-module.exports = NATSBroadcaster;
+export default NATSBroadcaster;
