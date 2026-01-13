@@ -24,7 +24,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/bmwasaru/laravel-echo-nats.git"
+    "url": "https://github.com/mwangaben/nats-laravel-echo"
   },
   "files": ["dist"],
   "scripts": {
