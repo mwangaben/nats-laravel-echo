@@ -1,6 +1,6 @@
 {
   "name": "nats-laravel-echo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.esm.js",
@@ -26,7 +26,9 @@
     "type": "git",
     "url": "https://github.com/mwangaben/nats-laravel-echo"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "npm run clean && rollup -c",
     "clean": "rm -rf dist",
