@@ -15,7 +15,8 @@
   "files": ["dist"],
   "scripts": {
     "build": "npm run clean && rollup -c",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "test": "node test/test.js"
   },
   "dependencies": {
     "nats.ws": "^1.26.0"

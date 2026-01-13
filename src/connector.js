@@ -18,6 +18,7 @@ class NATSConnector {
     constructor(options) {
         this.options = options;
         this.broadcaster = null;
+        this.connectionListeners = [];
     }
 
     connect() {
@@ -29,7 +30,36 @@ class NATSConnector {
             maxReconnectAttempts: this.options.maxReconnectAttempts || 10
         });
 
+        // Listen for connection changes
+        this.broadcaster.onConnectionChange((connected, error) => {
+            this.notifyConnectionListeners(connected, error);
+        });
+
         return this;
+    }
+
+    onConnectionChange(listener) {
+        this.connectionListeners.push(listener);
+        // Immediately notify of current state if broadcaster exists
+        if (this.broadcaster && this.broadcaster.isConnected) {
+            listener(true);
+        }
+        return () => {
+            const index = this.connectionListeners.indexOf(listener);
+            if (index > -1) {
+                this.connectionListeners.splice(index, 1);
+            }
+        };
+    }
+
+    notifyConnectionListeners(connected, error = null) {
+        this.connectionListeners.forEach(listener => {
+            try {
+                listener(connected, error);
+            } catch (err) {
+                console.error('Error in connection listener:', err);
+            }
+        });
     }
 
     listen(channel, event, callback) {
@@ -59,6 +89,9 @@ class NATSConnector {
 
     leave(channel) {
         // Implementation for leaving channels
+        // This could unsubscribe from all events on the channel
+        console.log(`Leaving channel: ${channel}`);
+        return this;
     }
 
     socketId() {
@@ -80,7 +113,15 @@ class NATSConnector {
     getConnectionStatus() {
         return this.broadcaster ?
             this.broadcaster.getConnectionStatus() :
-            { isConnected: false, socketId: null, subscriptionCount: 0 };
+            {
+                isConnected: false,
+                socketId: null,
+                subscriptionCount: 0,
+                callbackCount: 0,
+                pendingSubscriptions: 0,
+                reconnectAttempts: 0,
+                maxReconnectAttempts: 0
+            };
     }
 }
 
@@ -89,6 +130,29 @@ class Channel {
         this.connector = connector;
         this.name = name;
         this.eventHandlers = new Map();
+        this.connectionUnsubscribe = null;
+
+        // Listen for connection changes to resubscribe
+        if (this.connector.broadcaster) {
+            this.connectionUnsubscribe = this.connector.broadcaster.onConnectionChange((connected) => {
+                if (connected) {
+                    this.resubscribe();
+                }
+            });
+        }
+    }
+
+    resubscribe() {
+        // Resubscribe to all events when connection is restored
+        for (const [event, subscription] of this.eventHandlers.entries()) {
+            // The old subscription is invalid after reconnection
+            // We need to create a new one
+            const newSubscription = this.connector.broadcaster.subscribe(this.name, event, subscription.callback);
+            this.eventHandlers.set(event, {
+                unsubscribe: newSubscription.unsubscribe,
+                callback: subscription.callback
+            });
+        }
     }
 
     listen(event, handler) {
@@ -98,14 +162,18 @@ class Channel {
         }
 
         const subscription = this.connector.broadcaster.subscribe(this.name, event, handler);
-        this.eventHandlers.set(event, subscription);
+        this.eventHandlers.set(event, {
+            unsubscribe: subscription.unsubscribe,
+            callback: handler
+        });
 
         return this;
     }
 
     stopListening(event) {
         if (this.eventHandlers.has(event)) {
-            this.eventHandlers.get(event).unsubscribe();
+            const subscription = this.eventHandlers.get(event);
+            subscription.unsubscribe();
             this.eventHandlers.delete(event);
         }
         return this;
@@ -117,6 +185,12 @@ class Channel {
             subscription.unsubscribe();
         }
         this.eventHandlers.clear();
+
+        // Clean up connection listener
+        if (this.connectionUnsubscribe) {
+            this.connectionUnsubscribe();
+        }
+
         return this;
     }
 }
