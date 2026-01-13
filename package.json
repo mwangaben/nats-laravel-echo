@@ -1,49 +1,29 @@
 {
   "name": "nats-laravel-echo",
   "version": "1.0.0",
-  "description": "NATS driver for Laravel Echo",
+  "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.esm.js",
-  "types": "dist/index.d.ts",
+  "browser": "dist/index.umd.js",
   "exports": {
     ".": {
       "import": "./dist/index.esm.js",
       "require": "./dist/index.cjs",
-      "types": "./dist/index.d.ts"
+      "default": "./dist/index.cjs"
     }
   },
+  "files": ["dist"],
   "scripts": {
-    "build": "rm -rf dist && rollup -c",
-    "dev": "rollup -c -w",
-    "test": "node test-anonymous.cjs",
-    "test:auth": "node test-correct-config.cjs",
-    "prepare": "npm run build"
+    "build": "npm run clean && rollup -c",
+    "clean": "rm -rf dist",
+    "test": "node test/test.js"
   },
-  "keywords": [
-    "laravel",
-    "echo",
-    "nats",
-    "broadcasting",
-    "websocket"
-  ],
-  "author": "Your Name",
-  "license": "MIT",
   "dependencies": {
-    "nats.ws": "^1.30.0"
-  },
-  "peerDependencies": {
-    "laravel-echo": "^1.15.0 || ^2.0.0"
+    "nats.ws": "^1.26.0"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^25.0.7",
-    "@rollup/plugin-node-resolve": "^15.2.0",
-    "@rollup/plugin-typescript": "^11.1.0",
-    "@types/node": "^25.0.6",
-    "cross-env": "^7.0.3",
-    "rollup": "^4.0.0",
-    "rollup-plugin-dts": "^6.1.0",
-    "tslib": "^2.6.0",
-    "typescript": "^5.3.0",
-    "ws": "^8.19.0"
+    "@rollup/plugin-commonjs": "^25.0.8",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "rollup": "^4.24.0"
   }
 }

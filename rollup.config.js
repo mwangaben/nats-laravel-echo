@@ -1,46 +1,50 @@
-// rollup.config.js
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
-import typescript from '@rollup/plugin-typescript';
-import dts from 'rollup-plugin-dts';
 
 export default [
-    // Main JavaScript bundle
+    // CommonJS (for Node.js)
     {
-        input: 'src/index.ts',
-        output: [
-            {
-                file: 'dist/index.cjs',
-                format: 'cjs',
-                sourcemap: true,
-                exports: 'named'
-            },
-            {
-                file: 'dist/index.esm.js',
-                format: 'es',
-                sourcemap: true
-            }
-        ],
+        input: 'src/index.js',
+        output: {
+            file: 'dist/index.cjs',
+            format: 'cjs',
+            exports: 'named'
+        },
         plugins: [
-            resolve({
-                browser: true
-            }),
-            commonjs(),
-            typescript({
-                tsconfig: './tsconfig.json',
-                exclude: ['**/*.test.ts', '**/*.spec.ts']
-            })
+            resolve(),
+            commonjs()
         ],
-        external: ['nats.ws', 'laravel-echo']
+        external: ['nats.ws']
     },
-    // TypeScript declarations
+    // ES Module (for modern bundlers)
     {
-        input: 'src/index.ts',
-        output: [{
-            file: 'dist/index.d.ts',
-            format: 'es'
-        }],
-        plugins: [dts()],
-        external: ['nats.ws', 'laravel-echo']
+        input: 'src/index.js',
+        output: {
+            file: 'dist/index.esm.js',
+            format: 'es',
+            exports: 'named'
+        },
+        plugins: [
+            resolve()
+        ],
+        external: ['nats.ws']
+    },
+    // UMD (for browsers) - Fixed version
+    {
+        input: 'src/index.js',
+        output: {
+            file: 'dist/index.umd.js',
+            format: 'umd',
+            name: 'LaravelEchoNATS',
+            exports: 'named',
+            globals: {
+                'nats.ws': 'nats'
+            }
+        },
+        plugins: [
+            resolve(),
+            commonjs()
+        ],
+        external: ['nats.ws']
     }
 ];
