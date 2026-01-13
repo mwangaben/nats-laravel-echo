@@ -56,11 +56,20 @@ class Echo {
     getConnectionStatus() {
         return this.connector.getConnectionStatus();
     }
+
+    // Expose helper functions as static methods
+    static normalizeEventName(eventName) {
+        return normalizeEventName(eventName);
+    }
+
+    static createCallbackKey(channel, event) {
+        return createCallbackKey(channel, event);
+    }
 }
 
 // Attach helper functions to the Echo class
 Echo.normalizeEventName = normalizeEventName;
 Echo.createCallbackKey = createCallbackKey;
 
-// Export only default
+// Export as default
 export default Echo;

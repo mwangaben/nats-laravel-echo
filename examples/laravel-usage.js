@@ -1,5 +1,5 @@
-// examples/laravel-usage.js
-import Echo from '../dist/index.cjs';
+// Import the CommonJS version properly
+import Echo from '../dist/index.esm.js';
 
 // ============================================================================
 // BASIC USAGE

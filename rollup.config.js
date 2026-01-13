@@ -1,4 +1,5 @@
 import resolve from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
 
 export default [
     // CommonJS (for Node.js)
@@ -7,9 +8,12 @@ export default [
         output: {
             file: 'dist/index.cjs',
             format: 'cjs',
-            exports: 'default'
+            exports: 'named'
         },
-        plugins: [resolve()],
+        plugins: [
+            resolve(),
+            commonjs()
+        ],
         external: ['nats.ws']
     },
     // ES Module (for modern bundlers)
@@ -17,24 +21,30 @@ export default [
         input: 'src/index.js',
         output: {
             file: 'dist/index.esm.js',
-            format: 'es'
+            format: 'es',
+            exports: 'named'
         },
-        plugins: [resolve()],
+        plugins: [
+            resolve()
+        ],
         external: ['nats.ws']
     },
-    // UMD (for browsers)
+    // UMD (for browsers) - Fixed version
     {
         input: 'src/index.js',
         output: {
             file: 'dist/index.umd.js',
             format: 'umd',
             name: 'LaravelEchoNATS',
-            exports: 'default',
+            exports: 'named',
             globals: {
                 'nats.ws': 'nats'
             }
         },
-        plugins: [resolve()],
+        plugins: [
+            resolve(),
+            commonjs()
+        ],
         external: ['nats.ws']
     }
 ];
