@@ -1,17 +1,17 @@
 import { connect, JSONCodec } from 'nats.ws';
 
 function normalizeEventName(eventName) {
-    console.log(`🔍 DEBUG: Normalizing event name: ${eventName}`);
+    // console.log(`🔍 DEBUG: Normalizing event name: ${eventName}`);
     // Convert "App\Events\OrderShipped" to "OrderShipped"
     if (eventName.includes('\\')) {
         // Handle both single and double backslashes
         const parts = eventName.split(/\\+/);
-        console.log(`🔍 DEBUG: Split parts:`, parts);
+        // console.log(`🔍 DEBUG: Split parts:`, parts);
         const normalized = parts.pop();
-        console.log(`🔍 DEBUG: Normalized to: ${normalized}`);
+        // console.log(`🔍 DEBUG: Normalized to: ${normalized}`);
         return normalized;
     }
-    console.log(`🔍 DEBUG: No normalization needed: ${eventName}`);
+    // console.log(`🔍 DEBUG: No normalization needed: ${eventName}`);
     return eventName;
 }
 
@@ -162,21 +162,21 @@ class NATSBroadcaster {
             const data = this.jsonCodec.decode(msg.data);
 
             if (this.options.debug) {
-                console.log('🔍 DEBUG: Received NATS message on channel:', channel);
-                console.log('🔍 DEBUG: Raw data:', data);
+                // console.log('🔍 DEBUG: Received NATS message on channel:', channel);
+                // console.log('🔍 DEBUG: Raw data:', data);
             }
 
             // Only check for event, not channel
             if (data && data.event) {
                 if (this.options.debug) {
-                    console.log(`🔍 DEBUG: Event found: ${data.event}`);
+                    // console.log(`🔍 DEBUG: Event found: ${data.event}`);
                 }
 
                 const eventName = data.event;
                 const normalizedEventName = normalizeEventName(eventName);
 
                 if (this.options.debug) {
-                    console.log(`🔍 DEBUG: Looking for callbacks:`);
+                    // console.log(`🔍 DEBUG: Looking for callbacks:`);
                     console.log(`  Exact: ${channel}.${eventName}`);
                     console.log(`  Normalized: ${channel}.${normalizedEventName}`);
                 }
@@ -184,34 +184,34 @@ class NATSBroadcaster {
                 // Try exact match first, then normalized name
                 let cb = this.callbacks.get(`${channel}.${eventName}`);
                 if (this.options.debug) {
-                    console.log(`🔍 DEBUG: Exact match found: ${!!cb}`);
+                    // console.log(`🔍 DEBUG: Exact match found: ${!!cb}`);
                 }
 
                 if (!cb) {
                     cb = this.callbacks.get(`${channel}.${normalizedEventName}`);
                     if (this.options.debug) {
-                        console.log(`🔍 DEBUG: Normalized match found: ${!!cb}`);
+                        // console.log(`🔍 DEBUG: Normalized match found: ${!!cb}`);
                     }
                 }
 
                 if (cb) {
                     if (this.options.debug) {
-                        console.log('🔍 DEBUG: Callback found, executing...');
+                        // console.log('🔍 DEBUG: Callback found, executing...');
                     }
                     // Pass the data (Laravel sends data in data.data)
                     const eventData = data.data || {};
                     cb(eventData);
                 } else {
                     if (this.options.debug) {
-                        console.log('🔍 DEBUG: No callback found!');
-                        console.log('🔍 DEBUG: Available callbacks:');
+                        // console.log('🔍 DEBUG: No callback found!');
+                        // console.log('🔍 DEBUG: Available callbacks:');
                         this.callbacks.forEach((value, key) => {
                             console.log(`  ${key}`);
                         });
                     }
                 }
             } else if (this.options.debug) {
-                console.log('🔍 DEBUG: No event in data or data missing');
+                // console.log('🔍 DEBUG: No event in data or data missing');
             }
         } catch (err) {
             console.error('NATS: Error processing message:', err);
@@ -220,14 +220,14 @@ class NATSBroadcaster {
 
     subscribe(channel, event, callback) {
         if (this.options.debug) {
-            console.log(`🔍 DEBUG: Subscribing to ${channel}.${event}`);
+            // console.log(`🔍 DEBUG: Subscribing to ${channel}.${event}`);
         }
 
         const key = `${channel}.${event}`;
 
         if (this.options.debug) {
-            console.log(`🔍 DEBUG: Callback key: ${key}`);
-            console.log('🔍 DEBUG: Registered callbacks:');
+            // console.log(`🔍 DEBUG: Callback key: ${key}`);
+            // console.log('🔍 DEBUG: Registered callbacks:');
             this.callbacks.forEach((value, key) => {
                 console.log(`  ${key}`);
             });
@@ -243,14 +243,14 @@ class NATSBroadcaster {
             // Queue for when connection is established
             this.pendingSubscriptions.push({ channel, event, callback });
             if (this.options.debug) {
-                console.log('🔍 DEBUG: Not connected, subscription queued');
+                // console.log('🔍 DEBUG: Not connected, subscription queued');
             }
         }
 
         return {
             unsubscribe: () => {
                 if (this.options.debug) {
-                    console.log(`🔍 DEBUG: Unsubscribing from ${key}`);
+                    // console.log(`🔍 DEBUG: Unsubscribing from ${key}`);
                 }
 
                 this.callbacks.delete(key);
